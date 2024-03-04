@@ -1,30 +1,29 @@
 // SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
 
 import {ERC721URIStorage} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
-
-pragma solidity ^0.8.0;
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
 abstract contract ERC721Lazy is ERC721URIStorage, EIP712 {
-    mapping(address => uint256) pendingWithdrawals;
+    mapping(address => uint) pendingWithdrawals;
 
     bytes32 private constant _VOUCHER_TYPEHASH =
         keccak256("NFTVoucher(uint256 tokenId,uint256 minPrice,string uri)");
 
-    //????
     constructor(string memory name) EIP712(name, "1") {}
 
     function redeem(
         address owner,
         address redeemer,
-        uint256 tokenId,
-        uint256 minPrice,
+        uint tokenId,
+        uint minPrice,
         string memory uri,
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) public payable returns (uint256) {
+    ) public payable returns (uint) {
         require(msg.value >= minPrice);
 
         bytes32 structHash = keccak256(
@@ -36,7 +35,6 @@ abstract contract ERC721Lazy is ERC721URIStorage, EIP712 {
             )
         );
 
-        // function for presenting our hash in correct way
         bytes32 digest = _hashTypedDataV4(structHash);
 
         address signer = ECDSA.recover(digest, v, r, s);
@@ -50,5 +48,26 @@ abstract contract ERC721Lazy is ERC721URIStorage, EIP712 {
         pendingWithdrawals[signer] += msg.value;
 
         return tokenId;
+    }
+
+    function withdraw() public {
+        address receiver = msg.sender;
+
+        uint amount = availableToWithdraw(receiver);
+        require(amount > 0);
+
+        pendingWithdrawals[receiver] = 0;
+
+        (bool ok, ) = receiver.call{value: amount}("");
+
+        require(ok);
+    }
+
+    function availableToWithdraw(address receiver) public view returns (uint) {
+        return pendingWithdrawals[receiver];
+    }
+
+    function DOMAIN_SEPARATOR() external view returns (bytes32) {
+        return _domainSeparatorV4();
     }
 }
