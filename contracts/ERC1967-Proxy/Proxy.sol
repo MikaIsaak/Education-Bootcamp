@@ -68,6 +68,10 @@ contract Proxy {
         }
     }
 
+    function admin() external view returns (address) {
+        return _getAdmin();
+    }
+
     function _getAdmin() private view returns (address) {
         return StorageSlot.getAddressSlot(ADMIN_SLOT).value;
     }
@@ -80,6 +84,10 @@ contract Proxy {
         require(_admin != address(0));
 
         StorageSlot.getAddressSlot(ADMIN_SLOT).value = _admin;
+    }
+
+    function changeAdmin(address admin) external {
+        _setAdmin(admin);
     }
 
     function _setImplementation(address _implementation) private {
@@ -109,12 +117,19 @@ contract AdminProxy {
         owner = msg.sender;
     }
 
+    function getProxyAdmin(address proxy) external view returns (address) {
+        (bool ok, bytes memory response) = proxy.staticcall(
+            abi.encodeWithSelector(Proxy.admin.selector)
+        );
+        require(ok);
+
+        return abi.decode(response, (address));
+    }
+
     function upgrade(
         address payable proxy,
         address implementation
     ) external onlyOwner {
         Proxy(proxy).upgradeTo(implementation);
     }
-
-    function changeProxyAdmin()
 }
