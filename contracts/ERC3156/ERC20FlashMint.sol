@@ -19,14 +19,14 @@ abstract contract ERC20FlashMint is
     error ERC3156ExceededMaxLoan(uint256 maxLoan);
     error ERC3156InvalidReceiver(address receiver);
 
-    function maxFlashLoan(address token) public view virtual returns (uint256) {
+    function maxFlashLoan(address token) public view returns (uint256) {
         return token == address(this) ? type(uint256).max - totalSupply() : 0;
     }
 
     function flashFee(
         address token,
         uint256 value
-    ) public view virtual returns (uint256) {
+    ) public view returns (uint256) {
         if (token != address(this)) {
             revert ERC3156UnsupportedToken(token);
         }
